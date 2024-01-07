@@ -1,0 +1,44 @@
+Performance results (Ran pb.c 5 times for each modification 10MB data):
+
+1) Un-modified xv6:
+-----------------------------------------------------------
+Min: 120, Max 126, Mean: 122
+-----------------------------------------------------------
+
+2) modified only vm.c (added custom move/copy function):
+-----------------------------------------------------------
+Min: 119, Max 127, Mean: 122.6
+-----------------------------------------------------------
+
+3) modified only pipe.c (modified the byte by byte implementation):
+-----------------------------------------------------------
+Min: 25, Max 27, Mean: 26
+-----------------------------------------------------------
+
+4) modified both pipe.c & vm.c(Also, changed compiler optimization flag to O3):
+-----------------------------------------------------------
+Min: 18, Max 19, Mean: 18.2
+-----------------------------------------------------------
+
+Trends:
+
+In our original code I got similar ticks as our first assignment. Here, the pipe write and read happens byte by byte and also we use the default memcpy function provided in c.
+
+In the 2nd part, I modified the vm.c to write a custom mem copy function that copies the data 64 bits (8 bytes) at a time if aligned, using a custom datatype. Even here, we don't see much upgrade in performance as the bottleneck is still the pipe read and write that calls the copyin and copy out functions. Since, we're sending one byte at a time from the pipe functions, we still get around the same performance.
+
+In 3rd part, we modify the pipe write and read functions to allow maximum transfer of data at a time. This greatly reduces the ticks from 120ish to 26ish. This tells us that the xv6 implementation of the pipe write and read was quite slow and the major bottleneck.
+
+On combining all the modifications and running the pb.c benchmark, I saw a slight reduction in ticks to around 18.2.
+
+Observation:
+
+The performance results indicate a noticeable improvement in XV6's pipe operations through targeted optimizations. Initially, without any modifications, the system exhibited a performance level similar to the baseline. However, the modifications made to the vm.c and pipe.c modules had varying impacts.
+
+Customizing the pipe write and reads improved the performance a lot as instead of sending one byte at a time to the copy-out and copy-in functions resulting in a lot of system call overhead we are trying to send the max data possible reducing overhead, moving more data, hence improving performance. Reducing context switch and fewer calls to the copy functions also reduce address translations that might have also led for the performance improvement.
+
+Customizing the memory copy function in vm.c to efficiently handle aligned data very slightly improved performance, but the dominant bottleneck remained the byte-by-byte pipe read and write operations. Furthermore, when combining all the optimizations and switching to a higher compiler optimization level (O3), the system achieved a substantial reduction in execution time (on seeing the assembly could see many inline calls and upgrades). The customs copy function written should have made a difference alone, but wasn't able to figure out, why it didn't.
+
+These results indicate that the major bottlenecks were indeed in the pipe read and write operations, and by addressing them and improving the memory copy function, the system achieved noteworthy speedup. I can think of some modifications that can result in further reduction of the ticks: 
+1) Increasing buffer size (the obvious one)
+2) Further optimize memory mapping to share memory (might come at a security risk)
+3) Improve context switching between processes (Don't really have the solution to do it, just an idea).
